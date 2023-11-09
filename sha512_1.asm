@@ -92,7 +92,8 @@
 ; 0x08E1 -- 0x08FF
 ; 0x0912 -- 0x09FF
 ;;;;;;;;;;;;;;2;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+.define	t1	0x8E1
+.define	t1l 0x8E2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;SHA512_time_trial:
@@ -461,9 +462,14 @@ ADD64_BM:
 	add	r4, r1
 	jnc	add64_done
 	adi	r3, 1
-add64_BM_done:
 	ret
 
+ADD64_BM_6to0:
+	add	r0, r6
+	add	r1, r7
+	jnc	add64_done
+	adi	r3, 1
+	ret
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;Function ROR64(x, n)
 ;input: r0&r1=x, r2=n
@@ -713,9 +719,9 @@ sig1:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 HASH:
 	;mov	r1, r4		;I am modiying the temp storage location for this value because R1 WILL get used for data  
-	ldi	r5, m1024	;here we aim to copy M to W (0..79)
+	ldi	r5, m1024	;here we aim to copy M to W (0..16)
 	ldi	r7, w80
-	ldi r2, 16
+	ldi r2, 32
 
 sch1:
 	ldr	r0, r5	;get the current address for M
@@ -745,23 +751,124 @@ sch2:
 	adi	r5, 1
 	ldr	r4, r5
 	;add	r3, r0
-	;add	r4, r1	;r3 and r4 now contain sig1(W(t-2)) + W(t-7)
+	;add	r4, r1	;r3&r4 = sig1(W(t-2)) + W(t-7)
 	call add64_BM
-	sys	dump
+	;sys	dump
 	;sys getchar
 	mov	r5, r7
 	adi	r5, 0xFFE2 ;(t-15) actually t-30 because of increased word length 
-	ldr r0, r5
+	ldr r0, r5 
 	adi	r5, 1
-	ldr r1, r5
-	call	sig0
+	ldr r1, r5	;r0&r1 = W(t-15)
+	call	sig0 ;r0&r1 = sig0(W(t-15))
 	mov	r5, r7
 	adi	r5, 0xFFE0	;(t-16) actually t-30 because yadda yadda 
 	ldr	r6, r5
 	push r7
 	adi r5, 1
 	ldr r7, r5
-	adi
+	call add64_BM_6to0  ;r0&r1 = sig1(W(t-15))+W(t-16)
+	call add64_BM	;r3&r4 = sig1(W(t-2))+W(t-7)+sig1(W(t-15))+W(t-16) 
+	pop	r7
+	str	r7, r3
+	adi	r7, 1
+	str	r7, r4
+	adi	r7, 1
+	adi r2, 0xFFFF
+	;sys	dump
+	;sys getchar
+	jnz	sch2
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;At this point, we have prepared the 80 64-bit message schedule: W
+;Use R3 as the loop count since R2 will be use by functions
+;initialize the working variables with initial H
+;The working variables are defined in sequence and work like a table
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	ldi	r5, HINIT
+	ldi r6, wva
+	ldi	r7, h0
+	ldi	r3, 16
+
+sch3:
+	ldr	r0, r5
+	adi r5, 1
+	ldr	r1, r5
+	str r6, r0
+	str r7, r0
+	adi r6, 1
+	adi r7, 1
+	str	r6, r1
+	str r7, r1
+	
+	adi	r5, 1
+	adi	r6, 1
+	adi	r7, 1
+	adi	r3, 0xFFFF
+	jnz sch3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Begin the big loop of 0 to 80
+;From this point on:
+; R6 is reserved as pointer to K
+; R7 is reserved as pointer to W
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	ldi r3, 80
+	ldi	r7, w80
+	ldi	r6, K512
+
+sch4:
+	ldm	r0, wve
+	ldm	r1, wve1
+	call sum1
+	
+	push r3		;store the incrementor for use later
+	ldm	r3, wvh
+	ldm r4, wvhl
+	call add64_bm ;r0&r1 = h+sum1
+	push r0
+	push r1
+	
+	ldm	r0, wve
+	ldm	r1, wve1
+	ldm	r2, wvf
+	ldm	r3, wvf1
+	ldm	r4, wvg
+	ldm	r5, wvg1
+
+	call ch	;r0&r1 = ch(r0&r1, r2&r3, r3&r4)
+	;mov	r3, r0
+	;mov r4, r1
+	pop	r4	
+	pop	r3	;r3&r4 = h+sum1
+	call add64_bm	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4)
+	mov	r3, r0
+	mov r4, r1
+	
+	ldr	r0, r6
+	adi	r6, 1
+	ldr	r1, r6
+	call add64_bm	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4 )+ K
+	mov	r3, r0
+	mov r4, r1
+
+	ldr r0, r7
+	adi	r7, 1
+	ldr	r1, r7
+
+	call add64_bm	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4 )+ K + W
+
+	stm t1, r0
+	stm t1l, r1
+
+	ldm	r0, wva
+	ldm r1, wval
+
+	call sum0
+
+
 	ret
 
 
