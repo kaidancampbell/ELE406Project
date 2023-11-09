@@ -94,7 +94,8 @@
 ;;;;;;;;;;;;;;2;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .define	t1	0x8E1
 .define	t1l 0x8E2
-
+.define t2	0x8E3
+.define t2l	0x8E4
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;SHA512_time_trial:
 ;The HASH subroutine is checked first with
@@ -721,7 +722,7 @@ HASH:
 	;mov	r1, r4		;I am modiying the temp storage location for this value because R1 WILL get used for data  
 	ldi	r5, m1024	;here we aim to copy M to W (0..16)
 	ldi	r7, w80
-	ldi r2, 32
+	ldi r2, 16
 
 sch1:
 	ldr	r0, r5	;get the current address for M
@@ -789,9 +790,11 @@ sch2:
 	ldi	r5, HINIT
 	ldi r6, wva
 	ldi	r7, h0
-	ldi	r3, 16
+	ldi	r3, 8
 
 sch3:
+	;sys	dump
+	;sys getchar
 	ldr	r0, r5
 	adi r5, 1
 	ldr	r1, r5
@@ -821,8 +824,11 @@ sch3:
 
 sch4:
 	ldm	r0, wve
-	ldm	r1, wve1
+	ldm	r1, wvel
 	call sum1
+	
+	;sys	dump
+	;sys getchar
 	
 	push r3		;store the incrementor for use later
 	ldm	r3, wvh
@@ -832,11 +838,11 @@ sch4:
 	push r1
 	
 	ldm	r0, wve
-	ldm	r1, wve1
+	ldm	r1, wvel
 	ldm	r2, wvf
-	ldm	r3, wvf1
+	ldm	r3, wvfl
 	ldm	r4, wvg
-	ldm	r5, wvg1
+	ldm	r5, wvgl
 
 	call ch	;r0&r1 = ch(r0&r1, r2&r3, r3&r4)
 	;mov	r3, r0
@@ -868,7 +874,109 @@ sch4:
 
 	call sum0
 
+	push	r0
+	push	r1
 
+	ldm	r0, wva
+	ldm	r1, wval
+	ldm	r2,	wvb
+	ldm	r3, wvbl
+	ldm	r4, wvc
+	ldm	r5, wvcl
+
+	call maj
+
+	pop	r4
+	pop	r3
+
+	call add64_bm
+	stm	t2, r0
+	stm t2l, r1
+
+	ldm	r0, wvg
+	ldm	r1, wvgl
+	stm	wvh, r0
+	stm	wvhl, r1
+
+	ldm	r0, wvf
+	ldm	r1, wvfl
+	stm	wvg, r0
+	stm	wvgl, r1
+	
+	ldm	r0, wve
+	ldm	r1, wvel
+	stm	wvf, r0
+	stm	wvfl, r1
+
+	ldm	r0, wvd
+	ldm	r1, wvdl
+
+	ldm	r3, t1
+	ldm	r4, t1l
+
+	call add64_bm
+
+	stm	wve, r0
+	stm	wvel, r1
+
+	ldm	r0, wvc
+	ldm	r1, wvcl
+	stm	wvd, r0
+	stm	wvdl, r1
+
+	ldm	r0, wvb
+	ldm	r1, wvbl
+	stm	wvc, r0
+	stm	wvcl, r1
+	
+	ldm	r0, wva
+	ldm	r1, wval
+	stm	wvb, r0
+	stm	wvbl, r1
+
+	ldm	r0, t1
+	ldm	r1, t1l
+
+	ldm	r3, t2
+	ldm	r4, t2l
+
+	call add64_bm
+
+	stm	wva, r0
+	stm	wval, r1
+
+	adi	r6, 1
+	adi r7, 1
+	pop r3
+	adi	r3, 0xFFFF
+	jnz	sch4
+
+	ldi	r6, wva
+	ldi	r7, h0
+	ldi	r5, 8
+
+sch5:
+	ldr	r0, r6
+	adi	r6, 1
+	ldr	r1, r6
+
+	ldr	r3, r7
+	adi	r7, 1
+	ldr	r4, r7
+	
+	call add64_bm
+
+	adi r7, 0xFFFF
+
+	str	r7, r0
+	adi r7, 1
+	str	r7, r1
+	adi	r6, 1
+	adi r7, 1
+	adi	r5, 0xFFFF
+	jnz sch5
+	sys dump
+	sys	getchar
 	ret
 
 
