@@ -469,7 +469,14 @@ ADD64_BM_6to0:
 	add	r0, r6
 	add	r1, r7
 	jnc	add64_done
-	adi	r3, 1
+	adi	r0, 1
+	ret
+
+ADD64_BM_3to0:
+	add	r0, r3
+	add	r1, r4
+	jnc	add64_done
+	adi	r0, 1
 	ret
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;Function ROR64(x, n)
@@ -736,7 +743,7 @@ sch1:
 	adi	r5, 1
 	adi	r7, 1
 	adi	r2, 0xFFFF
-	jns sch1
+	jnz sch1
 	
 	ldi	r2, 64	;process the next 64 entrances
 sch2:	
@@ -833,7 +840,7 @@ sch4:
 	push r3		;store the incrementor for use later
 	ldm	r3, wvh
 	ldm r4, wvhl
-	call add64_bm ;r0&r1 = h+sum1
+	call add64_bm_3to0 ;r0&r1 = h+sum1
 	push r0
 	push r1
 	
@@ -849,14 +856,14 @@ sch4:
 	;mov r4, r1
 	pop	r4	
 	pop	r3	;r3&r4 = h+sum1
-	call add64_bm	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4)
+	call add64_bm_3to0	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4)
 	mov	r3, r0
 	mov r4, r1
 	
 	ldr	r0, r6
 	adi	r6, 1
 	ldr	r1, r6
-	call add64_bm	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4 )+ K
+	call add64_bm_3to0	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4 )+ K
 	mov	r3, r0
 	mov r4, r1
 
@@ -864,119 +871,120 @@ sch4:
 	adi	r7, 1
 	ldr	r1, r7
 
-	call add64_bm	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4 )+ K + W
+	call add64_bm_3to0	;r0&r1 = h+sum1+ch(r0&r1, r2&r3, r3&r4 )+ K + W
 
-	stm t1, r0
+	stm t1, r0		;storing above value
 	stm t1l, r1
 
-	ldm	r0, wva
+	ldm	r0, wva		;loading a
 	ldm r1, wval
 
-	call sum0
+	call sum0		;creating sum0 and storing
 
 	push	r0
 	push	r1
 
-	ldm	r0, wva
+	ldm	r0, wva		;loading a, b and c
 	ldm	r1, wval
 	ldm	r2,	wvb
 	ldm	r3, wvbl
 	ldm	r4, wvc
 	ldm	r5, wvcl
 
-	call maj
+	call maj	;producing maj in r0&r1
 
-	pop	r4
+	pop	r4		;recallling sum0 into r4 and r3
 	pop	r3
 
-	call add64_bm
-	stm	t2, r0
+	call add64_bm_3to0	;r0&r1 = sum0+maj
+	stm	t2, r0		;store this value
 	stm t2l, r1
 
-	ldm	r0, wvg
-	ldm	r1, wvgl
-	stm	wvh, r0
+	ldm	r0, wvg		;load g
+	ldm	r1, wvgl	
+	stm	wvh, r0		;load h
 	stm	wvhl, r1
 
-	ldm	r0, wvf
+	ldm	r0, wvf		;load f
 	ldm	r1, wvfl
-	stm	wvg, r0
+	stm	wvg, r0		;store the value of f in g
 	stm	wvgl, r1
 	
-	ldm	r0, wve
+	ldm	r0, wve		;load e
 	ldm	r1, wvel
-	stm	wvf, r0
+	stm	wvf, r0		;store in f
 	stm	wvfl, r1
 
-	ldm	r0, wvd
+	ldm	r0, wvd		;load d
 	ldm	r1, wvdl
 
-	ldm	r3, t1
+	ldm	r3, t1		;load t1
 	ldm	r4, t1l
 
-	call add64_bm
+	call add64_bm_3to0 ;r0&r1 = t1+d
 
-	stm	wve, r0
+	stm	wve, r0		;store in e
 	stm	wvel, r1
 
-	ldm	r0, wvc
+	ldm	r0, wvc		;load c
 	ldm	r1, wvcl
-	stm	wvd, r0
+	stm	wvd, r0		;store in d
 	stm	wvdl, r1
 
-	ldm	r0, wvb
+	ldm	r0, wvb		;load b
 	ldm	r1, wvbl
-	stm	wvc, r0
+	stm	wvc, r0		;store in c
 	stm	wvcl, r1
 	
-	ldm	r0, wva
+	ldm	r0, wva		;load a
 	ldm	r1, wval
-	stm	wvb, r0
+	stm	wvb, r0		;store in b 
 	stm	wvbl, r1
 
-	ldm	r0, t1
+	ldm	r0, t1		;load t1
 	ldm	r1, t1l
 
-	ldm	r3, t2
+	ldm	r3, t2		;load t2
 	ldm	r4, t2l
 
-	call add64_bm
+	call add64_bm_3to0 ;r0&r1 = t1+t2
 
-	stm	wva, r0
+	stm	wva, r0		;store t1+t2 in a
 	stm	wval, r1
 
-	adi	r6, 1
-	adi r7, 1
-	pop r3
-	adi	r3, 0xFFFF
-	jnz	sch4
+	adi	r6, 1		;increment r6
+	adi r7, 1		;increment r7
+	pop r3			;renew the loop incrementor
+	adi	r3, 0xFFFF	;decrement
+	jnz	sch4		;loop if not zero
 
-	ldi	r6, wva
+	ldi	r6, wva		
 	ldi	r7, h0
 	ldi	r5, 8
 
 sch5:
-	ldr	r0, r6
-	adi	r6, 1
-	ldr	r1, r6
+	ldr	r0, r6		;load pointer to wva
+	adi	r6, 1		
+	ldr	r1, r6		
 
-	ldr	r3, r7
+	ldr	r3, r7		;load pointer to h0
 	adi	r7, 1
 	ldr	r4, r7
 	
-	call add64_bm
+	call add64_bm_3to0	;r0&r1 = wva + h0
 
-	adi r7, 0xFFFF
+	adi r7, 0xFFFF	;decrement to produce the upper word of h0
 
-	str	r7, r0
+	str	r7, r0		;store wva+h0 in h0
 	adi r7, 1
 	str	r7, r1
-	adi	r6, 1
+	
+	adi	r6, 1		;increment pointers
 	adi r7, 1
-	adi	r5, 0xFFFF
+	adi	r5, 0xFFFF	;decrement loop counter
 	jnz sch5
-	sys dump
-	sys	getchar
+	;sys dump
+	;sys	getchar
 	ret
 
 
