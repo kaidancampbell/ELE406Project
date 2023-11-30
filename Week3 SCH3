@@ -1,0 +1,28 @@
+	;ldi	r5, HINIT
+	;ldi r6, wva
+	;ldi	r7, h0
+	ldi	r3, 16
+	ldi	r5, 0
+sch3:
+	
+	ldix	r0, r5, Hinit
+	
+	;ldr	r0, r5
+	;adi r5, 1
+	;ldr	r1, r5
+	;str r6, r0
+	;str r7, r0
+	
+	stix r5, r0, h0
+	stix r5, r0, wva
+	adi r5, 1
+	
+	;adi r6, 1
+	;adi r7, 1
+	;str	r6, r1
+	;str r7, r1
+	;adi	r6, 1
+	;adi	r7, 1
+	
+	adi	r3, 0xFFFF
+	jnz sch3
